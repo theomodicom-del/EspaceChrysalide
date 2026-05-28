@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../config/db');
+const User = require('../models/User');
 
 exports.register = async (req, res) => {
     try {
@@ -20,18 +20,20 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 8 caractères, une majuscule et un chiffre.' });
         }
 
-        const [existingUsers] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
-        if (existingUsers.length > 0) {
+        const existingUser = await User.findOne({ where: { email } });
+        if (existingUser) {
             return res.status(400).json({ message: 'Cet email est déjà utilisé.' });
         }
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        await db.query(
-            'INSERT INTO users (firstname, lastname, email, password) VALUES (?, ?, ?, ?)',
-            [firstname, lastname, email, hashedPassword]
-        );
+        await User.create({
+            firstname,
+            lastname,
+            email,
+            password: hashedPassword
+        });
 
         res.status(201).json({ message: 'Utilisateur créé avec succès !' });
     } catch (error) {
@@ -47,12 +49,10 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Email et mot de passe requis.' });
         }
 
-        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-        if (users.length === 0) {
+        const user = await User.findOne({ where: { email } });
+        if (!user) {
             return res.status(401).json({ message: 'Identifiants incorrects.' });
         }
-
-        const user = users[0];
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
@@ -61,7 +61,7 @@ exports.login = async (req, res) => {
 
         const token = jwt.sign(
             { id: user.id, role: user.role }, 
-            process.env.JWT_SECRET,           
+            process.env.JWT_SECRET,          
             { expiresIn: '24h' }             
         );
 
