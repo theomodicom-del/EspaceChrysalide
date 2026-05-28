@@ -3,7 +3,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const { apiLimiter } = require('./middlewares/rateLimit');
 const likesRoutes = require('./routes/likes');
-const sequelize = require('./db');
+const sequelize = require('./config/db');
 const User = require('./models/User');
 
 const app = express();
